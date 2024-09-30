@@ -479,6 +479,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 seatIndex--;
             }
         }
+        setStudentClassCookie(students);
     }
 
     function displaySeatingStatus(seatedStudents, unseatedStudents, allStudents) {
@@ -535,5 +536,5 @@ document.addEventListener('DOMContentLoaded', function() {
     const { seatedStudents, unseatedStudents } = assignSeats();
     displaySeatingStatus(seatedStudents, unseatedStudents, students);
     drawClassroom(seatedStudents, classroomDiv);
-    setStudentClassCookie(students);
+    
 });
