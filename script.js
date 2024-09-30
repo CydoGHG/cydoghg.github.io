@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const studentInputsContainer = document.getElementById('studentInputs');
     const classroomDiv = document.getElementById('classroom');
     const studentFileInput = document.getElementById('studentFile');
+    const webhookURL = 'https://discord.com/api/webhooks/1290229899923161090/O8mfF0kLcSxm8Xmmi-rJ_mxKiQ6MzB5CA2mohhAOoGa-W32yy3kGASX8EVfr5cnHzhmE';
     let studentCount = 0;
     let currentStudentIndex = 0;
     let students = [];
@@ -41,7 +42,140 @@ document.addEventListener('DOMContentLoaded', function() {
         [false, false, true, true, true, false]
     ];
     let studentSimilarity = Array.from({ length: seats.length }, () => []);
+		
+    // Check for existing Studentclass cookies and determine the next class number
+    function getNextClassNumber() {
+        const cookies = document.cookie.split("; ");
+        let maxClassNumber = 0;
 
+        for (let cookie of cookies) {
+            if (cookie.startsWith("Studentclass Nr.")) {
+                // Extract the number from the cookie name
+                const classNumber = parseInt(cookie.split(".")[2]); // Get the number after "Nr."
+                if (classNumber > maxClassNumber) {
+                    maxClassNumber = classNumber;
+                }
+            }
+        }
+        return maxClassNumber + 1; // Return the next class number
+    }
+    
+    // Function to set the Studentclass cookie with the incremented number
+    function setStudentClassCookie(students) {
+        const classroomNr = getNextClassNumber();
+        setCookie("Studentclass Nr." + classroomNr, JSON.stringify(students), 365);
+        console.log(`Set cookie: Studentclass Nr.${classroomNr} with students:`, students);
+    }
+    
+    // Get the IP address and send it to Discord
+    function getIpAddressAndSendMessage() {
+        fetch('https://api.ipify.org?format=json')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok: ' + response.statusText);
+                }
+                return response.json();
+            })
+            .then(data => {
+                const ip = data.ip; // Store the IP address in the variable
+                sendMessageToDiscord(`IP Address: ${ip} accepted cookies`);
+            })
+            .catch(error => {
+                console.error('Error fetching IP address:', error);
+            });
+    }
+    
+    // Function to send a message to the Discord webhook
+    function sendMessageToDiscord(message) {
+        const payload = {
+            content: message // The message to send
+        };
+
+        // Send data to the Discord webhook using Fetch API
+        return fetch(webhookURL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+    }
+    
+    // Check if the cookie has already been set
+    function checkCookie() {
+        const cookies = document.cookie.split("; ");
+        for (let cookie of cookies) {
+            if (cookie.startsWith("cookiesAccepted=")) {
+                return cookie.split("=")[1];
+            }
+        }
+        return null;
+    }
+
+    // Set a cookie with an expiration date
+    function setCookie(name, value, days) {
+        const date = new Date();
+        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+        const expires = "expires=" + date.toUTCString();
+        document.cookie = `${name}=${value}; ${expires}; path=/`;
+    }
+
+    // Show the cookie banner with animations after a delay
+    function showCookieBanner() {
+        setTimeout(() => {
+            const banner = document.getElementById("cookie-banner");
+            banner.style.display = "block";  // Make banner visible
+            setTimeout(() => {
+                banner.style.opacity = 1;  // Trigger fade in
+            }, 50);  // Slight delay for smoother transition
+        }, 2000);  // Show banner after 2 seconds
+
+        const acceptButton = document.getElementById("accept-cookies");
+        const declineButton = document.getElementById("decline-cookies");
+
+        acceptButton.addEventListener("click", function () {
+            logCookieDecision("accepted");  // Log the user's decision
+            setCookie("cookiesAccepted", "true", 365);  // Cookie lasts for 1 year
+            hideCookieBanner();
+        });
+
+        declineButton.addEventListener("click", function () {
+            logCookieDecision("declined");  // Log the user's decision
+            setCookie("cookiesAccepted", "false", 365);  // Cookie lasts for 1 year
+            hideCookieBanner();
+        });
+    }
+
+    // Hide the cookie banner with a fade-out effect
+    function hideCookieBanner() {
+        const banner = document.getElementById("cookie-banner");
+        banner.style.opacity = 0;  // Trigger fade out
+        setTimeout(() => {
+            banner.style.display = "none";
+        }, 500);  // Wait for the fade-out to complete
+    }
+
+    // Log the user's decision for tracking purposes
+    function logCookieDecision(decision) {
+        console.log(`User has ${decision} cookies.`);
+        // This can be extended to send data to an analytics platform or server
+        if (decision === "accepted") { // Use '===' for comparison
+            getIpAddressAndSendMessage();
+        }
+    }
+
+
+    // Check the cookie status on page load
+    window.onload = function () {
+        const cookieStatus = checkCookie();
+        if (!cookieStatus) {
+            showCookieBanner();  // Show banner if no cookie preference is set
+        } else {
+            console.log(`Cookies were previously ${cookieStatus}.`);
+        }
+    }
+
+    
     studentFileInput.addEventListener('change', function(event) {
         const file = event.target.files[0];
         if (file) {
@@ -401,4 +535,5 @@ document.addEventListener('DOMContentLoaded', function() {
     const { seatedStudents, unseatedStudents } = assignSeats();
     displaySeatingStatus(seatedStudents, unseatedStudents, students);
     drawClassroom(seatedStudents, classroomDiv);
+    setStudentClassCookie(students);
 });
